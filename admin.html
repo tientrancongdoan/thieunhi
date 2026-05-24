@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Hồ sơ Công đoàn</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f4f7f6; }
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #0056b3; text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px;}
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #0056b3; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        button { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-bottom: 4px;}
+        .btn-approve { background-color: #28a745; margin-right: 5px; }
+        .btn-reject { background-color: #dc3545; }
+        .btn-approve:hover { background-color: #218838; }
+        .btn-reject:hover { background-color: #c82333; }
+        a.evidence-link { color: #0056b3; font-weight: bold; text-decoration: none; }
+        a.evidence-link:hover { text-decoration: underline; }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .status-pending { background: #ffc107; color: #000; }
+        .status-approved { background: #d4edda; color: #155724; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>DANH SÁCH HỒ SƠ CHỜ DUYỆT</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ngày nộp</th>
+                    <th>Thông tin Nhân viên</th>
+                    <th>Thông tin Con em</th>
+                    <th>Loại hồ sơ</th>
+                    <th>Minh chứng</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr><td colspan="7" style="text-align: center;">Đang tải dữ liệu hệ thống...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const pwd = prompt("Vui lòng nhập mật khẩu quản trị viên (admin123):");
+        if (pwd !== "admin123") {
+            document.body.innerHTML = "<h2 style='color:red;text-align:center;margin-top:50px;'>SAI MẬT KHẨU! BẠN KHÔNG CÓ QUYỀN TRUY CẬP.</h2>";
+            throw new Error("Unauthorized access");
+        }
+
+        const SUPABASE_URL = 'https://tnfbfabrkexpmrdgpuky.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuZmJmYWJya2V4cG1yZGdwdWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzA1MDMsImV4cCI6MjA5NTE0NjUwM30.qIkRcYs9G1NoDjZUOP-XZVE-3URK42yMjx92_pWsEJE';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function loadData() {
+            // Lệnh JOIN kéo dữ liệu từ bảng cd_ho_so cùng với cd_nhan_vien và cd_con_em
+            const { data, error } = await supabase
+                .from('cd_ho_so')
+                .select(`
+                    id, created_at, status, categories_list, evidence_url,
+                    cd_nhan_vien (msnv, full_name, department),
+                    cd_con_em (full_name, birth_year)
+                `)
+                .order('created_at', { ascending: false });
+            
+            const tbody = document.getElementById('table-body');
+            
+            if (error) { 
+                tbody.innerHTML = `<tr><td colspan='7' style='text-align:center;color:red;'>Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+                return; 
+            }
+            
+            tbody.innerHTML = "";
+            
+            if(!data || data.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>Hệ thống chưa ghi nhận hồ sơ nào.</td></tr>";
+                return;
+            }
+
+            data.forEach(row => {
+                const dateObj = new Date(row.created_at);
+                const dateStr = dateObj.toLocaleDateString('vi-VN') + " " + dateObj.toLocaleTimeString('vi-VN');
+                
+                let statusClass = "status-pending";
+                if(row.status === 'Đã duyệt') statusClass = "status-approved";
+                if(row.status === 'Từ chối') statusClass = "status-rejected";
+
+                const empName = row.cd_nhan_vien ? `${row.cd_nhan_vien.msnv} - ${row.cd_nhan_vien.full_name}` : 'Không rõ';
+                const depName = row.cd_con_em ? `${row.cd_con_em.full_name} (SN: ${row.cd_con_em.birth_year})` : 'Không rõ';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${dateStr}</td>
+                    <td><strong>${empName}</strong><br><small style="color:#555;">${row.cd_nhan_vien ? row.cd_nhan_vien.department : ''}</small></td>
+                    <td>${depName}</td>
+                    <td>${row.categories_list}</td>
+                    <td><a href="${row.evidence_url}" target="_blank" class="evidence-link">📁 Xem File</a></td>
+                    <td><span class="status-badge ${statusClass}">${row.status}</span></td>
+                    <td>
+                        <button class="btn-approve" onclick="updateStatus(${row.id}, 'Đã duyệt')">Duyệt</button>
+                        <button class="btn-reject" onclick="updateStatus(${row.id}, 'Từ chối')">Từ chối</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateStatus(id, newStatus) {
+            if(!confirm(`Bạn chắc chắn muốn chuyển trạng thái hồ sơ này thành: ${newStatus}?`)) return;
+            const { error } = await supabase.from('cd_ho_so').update({ status: newStatus }).eq('id', id);
+            
+            if (!error) {
+                loadData(); 
+            } else {
+                alert("Lỗi cập nhật hệ thống: " + error.message);
+            }
+        }
+
+        // Tự động load dữ liệu khi vào trang
+        loadData();
+    </script>
+</body>
+</html>
