@@ -72,7 +72,7 @@
         
         .submit-btn { width: 100%; margin-top: 10px; padding: 12px; font-size: 16px;}
         
-        .feedback { font-size: 14px; margin-top: 8px; font-weight: bold; }
+        .feedback { font-size: 14px; margin-top: 8px; font-weight: bold; display: block; min-height: 20px; }
         .text-success { color: #28a745; }
         .text-danger { color: #dc3545; }
         .text-warning { color: #ff9800; }
@@ -135,48 +135,61 @@
     <script>
         const SUPABASE_URL = 'https://tnfbfabrkexpmrdgpuky.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuZmJmYWJya2V4cG1yZGdwdWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzA1MDMsImV4cCI6MjA5NTE0NjUwM30.qIkRcYs9G1NoDjZUOP-XZVE-3URK42yMjx92_pWsEJE';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOo1wv-sAjt7PrNSZuZHs3LyNALsHlNGzSmFnjyPz0bHwaYrZ_xal84exutrQLn8v5Uw/exec';
 
+        // Kiểm tra xem Supabase đã tải được từ mạng chưa
+        if (typeof window.supabase === 'undefined') {
+            alert("LỖI MẠNG: Không thể tải thư viện cơ sở dữ liệu (Supabase). Vui lòng kiểm tra lại đường truyền internet!");
+        }
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let formattedMsnv = "";
 
         async function fetchEmployee() {
+            // CÁC BƯỚC BẮT LỖI CỨNG (Phòng trường hợp HTML bị lỗi)
+            const inputEl = document.getElementById('msnv');
             const btn = document.getElementById('checkBtn');
             const infoDiv = document.getElementById('employee-info');
             const formDiv = document.getElementById('registration-form');
-            
+
+            if (!inputEl) {
+                alert("LỖI CẤU TRÚC: Không tìm thấy ô nhập MSNV. Vui lòng copy lại đầy đủ code HTML!");
+                return;
+            }
+
             try {
-                let inputVal = document.getElementById('msnv').value.trim();
+                let inputVal = inputEl.value.trim();
+                
                 if (!inputVal) {
                     infoDiv.className = 'feedback text-warning';
                     infoDiv.innerText = "⚠️ Vui lòng nhập MSNV!";
                     return;
                 }
                 
+                // Tự động bù đủ 6 số
                 if (inputVal.length > 0 && inputVal.length < 6) {
                     inputVal = inputVal.padStart(6, '0');
                 }
                 
-                document.getElementById('msnv').value = inputVal;
+                inputEl.value = inputVal;
                 formattedMsnv = inputVal;
                 
                 btn.disabled = true;
                 infoDiv.className = 'feedback text-info';
-                infoDiv.innerText = "⏳ Đang tra cứu dữ liệu nhân viên...";
+                infoDiv.innerText = "⏳ Đang tra cứu dữ liệu nhân viên, vui lòng đợi...";
                 formDiv.style.display = 'none';
                 
                 const { data, error } = await supabase.from('employees').select('*').eq('msnv', formattedMsnv).single();
                 
                 btn.disabled = false;
 
-                // Xử lý khi có lỗi từ Supabase (Đặc biệt là lỗi PGRST116: Không tìm thấy dữ liệu)
                 if (error) {
                     if (error.code === 'PGRST116') {
                         infoDiv.className = 'feedback text-danger';
                         infoDiv.innerText = `❌ Không tìm thấy nhân viên có mã: ${formattedMsnv}`;
                     } else {
                         infoDiv.className = 'feedback text-danger';
-                        infoDiv.innerText = `❌ Lỗi cơ sở dữ liệu: ${error.message}`;
+                        infoDiv.innerText = `❌ Lỗi DB: ${error.message}`;
                     }
                     return;
                 }
@@ -188,11 +201,13 @@
                 }
                 
             } catch (err) {
-                // Bắt mọi lỗi văng ra làm đứng trình duyệt (VD: Lỗi mạng, CDN)
                 btn.disabled = false;
-                infoDiv.className = 'feedback text-danger';
-                infoDiv.innerText = `❌ Lỗi hệ thống: ${err.message}`;
-                console.error("Lỗi JS:", err);
+                if(infoDiv) {
+                    infoDiv.className = 'feedback text-danger';
+                    infoDiv.innerText = `❌ Lỗi hệ thống: ${err.message}`;
+                } else {
+                    alert(`Lỗi hệ thống: ${err.message}`);
+                }
             }
         }
 
@@ -226,7 +241,7 @@
                 btn.disabled = true;
                 btn.innerText = "⏳ ĐANG XỬ LÝ...";
                 msg.className = 'feedback text-info';
-                msg.innerText = "Đang tải file lên Google Drive, vui lòng đợi...";
+                msg.innerText = "Đang tải file lên Google Drive, quá trình này có thể mất vài giây...";
 
                 const file = fileInput.files[0];
                 const reader = new FileReader();
