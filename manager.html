@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý hồ sơ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 5px 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>Danh sách hồ sơ chờ duyệt</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>MSNV</th>
+                <th>Tên Con</th>
+                <th>Phân loại</th>
+                <th>File Bằng chứng</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+    </table>
+
+    <script>
+        // Yêu cầu nhập mật khẩu bảo vệ cơ bản
+        const pwd = prompt("Nhập mật khẩu quản trị:");
+        if (pwd !== "admin123") {
+            document.body.innerHTML = "<h2>Sai mật khẩu!</h2>";
+            throw new Error("Unauthorized");
+        }
+
+        const SUPABASE_URL = 'https://tnfbfabrkexpmrdgpuky.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuZmJmYWJya2V4cG1yZGdwdWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzA1MDMsImV4cCI6MjA5NTE0NjUwM30.qIkRcYs9G1NoDjZUOP-XZVE-3URK42yMjx92_pWsEJE';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function loadData() {
+            const { data, error } = await supabase.from('submissions').select('*').order('created_at', { ascending: false });
+            if (error) return alert("Lỗi tải dữ liệu!");
+            
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = "";
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.msnv}</td>
+                    <td>${row.dependent_name} (${row.birth_year})</td>
+                    <td>${row.categories}</td>
+                    <td><a href="${row.evidence_url}" target="_blank">Xem File</a></td>
+                    <td><strong>${row.status}</strong></td>
+                    <td>
+                        <button onclick="updateStatus(${row.id}, 'Đã duyệt')" style="background:#28a745; color:white">Duyệt</button>
+                        <button onclick="updateStatus(${row.id}, 'Từ chối')" style="background:#dc3545; color:white">Từ chối</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateStatus(id, newStatus) {
+            const { error } = await supabase.from('submissions').update({ status: newStatus }).eq('id', id);
+            if (!error) {
+                loadData(); // Tải lại bảng
+            } else {
+                alert("Lỗi cập nhật!");
+            }
+        }
+
+        // Tải dữ liệu lần đầu
+        loadData();
+    </script>
+</body>
+</html>
