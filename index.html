@@ -7,10 +7,11 @@
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
         .form-group { margin-bottom: 15px; }
-        input[type="text"], input[type="number"], input[type="file"] { width: 100%; padding: 8px; margin-top: 5px; }
-        button { padding: 10px 15px; background-color: #0056b3; color: white; border: none; cursor: pointer; }
+        input[type="text"], input[type="number"], input[type="file"] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { padding: 10px 15px; background-color: #0056b3; color: white; border: none; cursor: pointer; margin-top: 10px; }
         button:disabled { background-color: #ccc; }
-        #employee-info { color: green; font-weight: bold; margin-top: 5px; }
+        #employee-info { font-weight: bold; margin-top: 8px; }
+        .checkbox-group { margin-top: 5px; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -18,7 +19,7 @@
     
     <div class="form-group">
         <label>Mã số nhân viên (MSNV):</label>
-        <input type="text" id="msnv" placeholder="Nhập MSNV (VD: 009719)" onblur="fetchEmployee()">
+        <input type="text" id="msnv" placeholder="Nhập MSNV (VD: 9719 hoặc 009719)" onblur="fetchEmployee()">
         <div id="employee-info"></div>
     </div>
 
@@ -28,15 +29,17 @@
             <input type="text" id="dependentName" required>
         </div>
         <div class="form-group">
-            <label>Năm sinh:</label>
+            <label>Năm sinh của con:</label>
             <input type="number" id="birthYear" required>
         </div>
         <div class="form-group">
-            <label>Phân loại báo cáo:</label><br>
-            <input type="checkbox" name="category" value="HSG Trường"> HSG Cấp Trường<br>
-            <input type="checkbox" name="category" value="HSG Thành Phố"> HSG Cấp TP<br>
-            <input type="checkbox" name="category" value="Năng khiếu"> Giải Năng khiếu<br>
-            <input type="checkbox" name="category" value="Học bổng NĐC"> Học bổng Nguyễn Đức Cảnh
+            <label>Phân loại báo cáo:</label>
+            <div class="checkbox-group">
+                <input type="checkbox" name="category" value="HSG Trường"> HSG Cấp Trường<br>
+                <input type="checkbox" name="category" value="HSG Thành Phố"> HSG Cấp TP<br>
+                <input type="checkbox" name="category" value="Năng khiếu"> Giải Năng khiếu<br>
+                <input type="checkbox" name="category" value="Học bổng NĐC"> Học bổng Nguyễn Đức Cảnh
+            </div>
         </div>
         <div class="form-group">
             <label>Minh chứng (Giấy khen/Bảng điểm - Tối đa 5MB):</label>
@@ -44,7 +47,7 @@
         </div>
         
         <button id="submitBtn" onclick="submitForm()">Gửi hồ sơ</button>
-        <div id="status-msg" style="margin-top:10px;"></div>
+        <div id="status-msg" style="margin-top:10px; font-weight: bold;"></div>
     </div>
 
     <script>
@@ -53,16 +56,32 @@
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOo1wv-sAjt7PrNSZuZHs3LyNALsHlNGzSmFnjyPz0bHwaYrZ_xal84exutrQLn8v5Uw/exec';
 
+        // Biến lưu msnv chuẩn (6 số) để dùng khi submit form
+        let formattedMsnv = "";
+
         async function fetchEmployee() {
-            const msnv = document.getElementById('msnv').value;
-            if (!msnv) return;
+            let inputVal = document.getElementById('msnv').value.trim();
+            if (!inputVal) return;
             
-            const { data, error } = await supabase.from('employees').select('*').eq('msnv', msnv).single();
+            // Xử lý bù số 0 nếu người dùng nhập thiếu (VD: 9719 -> 009719)
+            // Giả định MSNV chuẩn của công ty luôn có 6 chữ số
+            if (inputVal.length > 0 && inputVal.length < 6) {
+                inputVal = inputVal.padStart(6, '0');
+            }
+            
+            // Cập nhật lại ô input cho người dùng thấy mã chuẩn
+            document.getElementById('msnv').value = inputVal;
+            formattedMsnv = inputVal;
+            
+            const { data, error } = await supabase.from('employees').select('*').eq('msnv', formattedMsnv).single();
+            
             if (data) {
-                document.getElementById('employee-info').innerText = `Nhân viên: ${data.full_name} - ${data.department}`;
+                document.getElementById('employee-info').innerText = `✅ Nhân viên: ${data.full_name} - ${data.department}`;
+                document.getElementById('employee-info').style.color = "green";
                 document.getElementById('registration-form').style.display = 'block';
             } else {
-                document.getElementById('employee-info').innerText = "Không tìm thấy MSNV!";
+                if (error) console.error("Chi tiết lỗi:", error);
+                document.getElementById('employee-info').innerText = `❌ Không tìm thấy MSNV: ${formattedMsnv}`;
                 document.getElementById('employee-info').style.color = "red";
                 document.getElementById('registration-form').style.display = 'none';
             }
@@ -71,10 +90,7 @@
         async function submitForm() {
             const btn = document.getElementById('submitBtn');
             const msg = document.getElementById('status-msg');
-            btn.disabled = true;
-            msg.innerText = "Đang tải file lên Google Drive...";
-
-            const msnv = document.getElementById('msnv').value;
+            
             const dependentName = document.getElementById('dependentName').value;
             const birthYear = document.getElementById('birthYear').value;
             
@@ -83,24 +99,37 @@
             checkboxes.forEach((cb) => { categories.push(cb.value); });
             
             const fileInput = document.getElementById('evidenceFile');
-            if (fileInput.files.length === 0 || categories.length === 0) {
-                alert("Vui lòng chọn phân loại và upload file!");
-                btn.disabled = false;
+            
+            if (!dependentName || !birthYear) {
+                alert("Vui lòng nhập tên và năm sinh của con!");
+                return;
+            }
+            if (categories.length === 0) {
+                alert("Vui lòng chọn ít nhất 1 phân loại báo cáo!");
+                return;
+            }
+            if (fileInput.files.length === 0) {
+                alert("Vui lòng tải lên file minh chứng!");
                 return;
             }
 
-            // 1. Upload File to Google Drive
+            btn.disabled = true;
+            msg.innerText = "⏳ Đang tải file lên Google Drive...";
+            msg.style.color = "blue";
+
             const file = fileInput.files[0];
             const reader = new FileReader();
+            
             reader.onload = async function(event) {
                 const base64 = event.target.result;
                 const payload = {
-                    fileName: msnv + "_" + file.name,
+                    fileName: formattedMsnv + "_" + file.name,
                     mimeType: file.type,
                     base64: base64
                 };
 
                 try {
+                    // 1. Upload File to Google Drive via AppScript
                     const gasResponse = await fetch(APPSCRIPT_URL, {
                         method: 'POST',
                         body: JSON.stringify(payload)
@@ -108,22 +137,38 @@
                     const gasResult = await gasResponse.json();
                     
                     if(gasResult.url) {
-                        msg.innerText = "Đang lưu dữ liệu...";
+                        msg.innerText = "⏳ Đang lưu dữ liệu hồ sơ...";
+                        
                         // 2. Save to Supabase
                         const { error } = await supabase.from('submissions').insert([
-                            { msnv: msnv, dependent_name: dependentName, birth_year: birthYear, categories: categories.join(', '), evidence_url: gasResult.url }
+                            { 
+                                msnv: formattedMsnv, 
+                                dependent_name: dependentName, 
+                                birth_year: birthYear, 
+                                categories: categories.join(', '), 
+                                evidence_url: gasResult.url 
+                            }
                         ]);
                         
                         if(!error) {
-                            msg.innerText = "Đăng ký thành công!";
+                            msg.innerText = "✅ Đăng ký thành công!";
                             msg.style.color = "green";
-                            document.getElementById('registration-form').reset();
+                            // Reset form sau khi gửi
+                            document.getElementById('dependentName').value = "";
+                            document.getElementById('birthYear').value = "";
+                            checkboxes.forEach(cb => cb.checked = false);
+                            fileInput.value = "";
                         } else {
-                            msg.innerText = "Lỗi Database: " + error.message;
+                            msg.innerText = "❌ Lỗi Database: " + error.message;
+                            msg.style.color = "red";
                         }
+                    } else {
+                        msg.innerText = "❌ Lỗi Upload: Không nhận được Link từ Drive";
+                        msg.style.color = "red";
                     }
                 } catch(e) {
-                    msg.innerText = "Lỗi Upload: " + e.message;
+                    msg.innerText = "❌ Lỗi hệ thống: " + e.message;
+                    msg.style.color = "red";
                 }
                 btn.disabled = false;
             };
