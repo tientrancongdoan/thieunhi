@@ -34,9 +34,7 @@
         <div class="form-group">
             <label>Nhập Mã số nhân viên (MSNV):</label>
             <div class="input-group">
-                <!-- Đã xóa onkeypress -->
                 <input type="text" id="msnv" placeholder="VD: 9719 hoặc 009719">
-                <!-- Đã xóa onclick -->
                 <button id="checkBtn">Kiểm tra</button>
             </div>
             <div id="employee-info" class="feedback"></div>
@@ -62,7 +60,6 @@
                 <input type="file" id="evidenceFile" accept=".jpg,.jpeg,.png,.pdf" required>
             </div>
             
-            <!-- Đã xóa onclick -->
             <button id="submitBtn" class="submit-btn">GỬI HỒ SƠ</button>
             <div id="status-msg" class="feedback" style="text-align: center; margin-top: 15px;"></div>
         </div>
@@ -83,7 +80,7 @@
 
         let formattedMsnv = "";
 
-        // Gắn sự kiện (Event Listeners) thay cho onclick trong HTML
+        // Lắng nghe sự kiện click và phím Enter
         document.getElementById('checkBtn').addEventListener('click', fetchEmployee);
         
         document.getElementById('msnv').addEventListener('keypress', function(event) {
