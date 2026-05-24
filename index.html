@@ -4,43 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng ký khen thưởng Công đoàn</title>
-    
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    
     <style>
-        :root {
-            --primary-color: #0056b3;
-            --hover-color: #004494;
-            --bg-color: #f4f7f6;
-            --text-color: #333;
-        }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            padding: 20px; 
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            background: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 500px;
-        }
+        :root { --primary-color: #0056b3; --hover-color: #004494; --bg-color: #f4f7f6; --text-color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); padding: 20px; display: flex; justify-content: center; }
+        .container { background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
         h2 { text-align: center; color: var(--primary-color); border-bottom: 2px solid #eee; padding-bottom: 15px; }
         .form-group { margin-bottom: 20px; }
         label { font-weight: bold; display: block; margin-bottom: 8px; font-size: 14px;}
         .input-group { display: flex; gap: 10px; }
         .input-group input { flex: 1; }
-        input[type="text"], input[type="number"], input[type="file"] { 
-            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 15px;
-        }
-        button { 
-            padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; 
-        }
+        input[type="text"], input[type="number"], input[type="file"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 15px; }
+        button { padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
         button:disabled { background-color: #aaa; cursor: not-allowed; }
         .submit-btn { width: 100%; margin-top: 10px; padding: 12px; font-size: 16px;}
         .feedback { font-size: 14px; margin-top: 8px; font-weight: bold; display: block; min-height: 20px; }
@@ -76,11 +51,8 @@
             </div>
             <div class="form-group">
                 <label>Chọn biểu mẫu báo cáo:</label>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="cat1" name="category" value="HSG Trường"> <label for="cat1">Danh sách HSG Cấp Trường</label><br>
-                    <input type="checkbox" id="cat2" name="category" value="HSG Thành Phố"> <label for="cat2">Danh sách HSG Cấp TP</label><br>
-                    <input type="checkbox" id="cat3" name="category" value="Năng khiếu"> <label for="cat3">Danh sách Năng khiếu</label><br>
-                    <input type="checkbox" id="cat4" name="category" value="Học bổng NĐC"> <label for="cat4">Học bổng Nguyễn Đức Cảnh</label>
+                <div class="checkbox-group" id="categories-container">
+                    Đang tải danh sách biểu mẫu...
                 </div>
             </div>
             <div class="form-group">
@@ -99,58 +71,47 @@
         const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOo1wv-sAjt7PrNSZuZHs3LyNALsHlNGzSmFnjyPz0bHwaYrZ_xal84exutrQLn8v5Uw/exec';
 
         let supabase;
-        let isSupabaseLoaded = false;
-
-        // Khởi tạo an toàn (Không làm sập web nếu mạng chặn)
         if (typeof window.supabase !== 'undefined') {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            isSupabaseLoaded = true;
+            loadCategories(); 
         } else {
-            console.error("LỖI: Thư viện Supabase chưa được tải!");
+            alert("Lỗi tải thư viện Supabase. Vui lòng kiểm tra kết nối mạng!");
         }
 
         let formattedMsnv = "";
 
+        // Tải danh mục từ bảng cd_danh_muc
+        async function loadCategories() {
+            const { data, error } = await supabase.from('cd_danh_muc').select('*').order('id', { ascending: true });
+            const container = document.getElementById('categories-container');
+            if (data && data.length > 0) {
+                container.innerHTML = "";
+                data.forEach(cat => {
+                    container.innerHTML += `<input type="checkbox" id="cat_${cat.id}" name="category" value="${cat.name}"> <label for="cat_${cat.id}">${cat.name}</label><br>`;
+                });
+            } else {
+                container.innerHTML = "<span style='color:red;'>Lỗi tải biểu mẫu hoặc chưa có dữ liệu.</span>";
+            }
+        }
+
+        // Tìm nhân viên từ bảng cd_nhan_vien
         async function fetchEmployee() {
             const infoDiv = document.getElementById('employee-info');
             const inputEl = document.getElementById('msnv');
             
-            // Kiểm tra mạng chặn
-            if (!isSupabaseLoaded) {
-                infoDiv.className = 'feedback text-danger';
-                infoDiv.innerText = "❌ Mạng nội bộ đang chặn dữ liệu. Hãy thử dùng mạng 4G điện thoại hoặc wifi khác!";
-                alert("Hệ thống mạng đang chặn kết nối đến cơ sở dữ liệu. Vui lòng kiểm tra lại mạng Wifi/LAN!");
-                return;
-            }
-
             try {
                 let inputVal = inputEl.value.trim();
-                if (!inputVal) {
-                    infoDiv.className = 'feedback text-warning';
-                    infoDiv.innerText = "⚠️ Vui lòng nhập MSNV!";
-                    return;
-                }
+                if (!inputVal) { infoDiv.className = 'feedback text-warning'; infoDiv.innerText = "⚠️ Vui lòng nhập MSNV!"; return; }
+                if (inputVal.length > 0 && inputVal.length < 6) inputVal = inputVal.padStart(6, '0');
                 
-                if (inputVal.length > 0 && inputVal.length < 6) {
-                    inputVal = inputVal.padStart(6, '0');
-                }
+                inputEl.value = inputVal; formattedMsnv = inputVal;
+                infoDiv.className = 'feedback text-info'; infoDiv.innerText = "⏳ Đang tra cứu...";
                 
-                inputEl.value = inputVal;
-                formattedMsnv = inputVal;
-                
-                infoDiv.className = 'feedback text-info';
-                infoDiv.innerText = "⏳ Đang tra cứu dữ liệu nhân viên...";
-                
-                const { data, error } = await supabase.from('employees').select('*').eq('msnv', formattedMsnv).single();
+                const { data, error } = await supabase.from('cd_nhan_vien').select('*').eq('msnv', formattedMsnv).single();
                 
                 if (error) {
-                    if (error.code === 'PGRST116') {
-                        infoDiv.className = 'feedback text-danger';
-                        infoDiv.innerText = `❌ Không tìm thấy nhân viên có mã: ${formattedMsnv}`;
-                    } else {
-                        infoDiv.className = 'feedback text-danger';
-                        infoDiv.innerText = `❌ Lỗi DB: ${error.message}`;
-                    }
+                    infoDiv.className = 'feedback text-danger';
+                    infoDiv.innerText = (error.code === 'PGRST116') ? `❌ Không tìm thấy mã: ${formattedMsnv}` : `❌ Lỗi: ${error.message}`;
                     return;
                 }
 
@@ -159,17 +120,80 @@
                     infoDiv.innerText = `✅ Xin chào: ${data.full_name} (${data.department})`;
                     document.getElementById('registration-form').style.display = 'block';
                 }
-                
             } catch (err) {
-                infoDiv.className = 'feedback text-danger';
-                infoDiv.innerText = `❌ Lỗi Javascript: ${err.message}`;
-                console.error(err);
+                infoDiv.className = 'feedback text-danger'; infoDiv.innerText = `❌ Lỗi hệ thống: ${err.message}`;
             }
         }
 
-        // Tạm ẩn hàm submitForm để test nút tra cứu trước (Tránh code quá dài sinh lỗi)
+        // Xử lý luồng gửi hồ sơ
         async function submitForm() {
-            alert("Nút Gửi hồ sơ đang hoạt động. Vui lòng test thành công việc tra cứu MSNV trước nhé!");
+            const btn = document.getElementById('submitBtn');
+            const msg = document.getElementById('status-msg');
+            
+            try {
+                const dependentName = document.getElementById('dependentName').value.trim();
+                const birthYear = document.getElementById('birthYear').value;
+                const checkboxes = document.querySelectorAll('input[name="category"]:checked');
+                let categories = []; checkboxes.forEach((cb) => { categories.push(cb.value); });
+                const fileInput = document.getElementById('evidenceFile');
+                
+                if (!dependentName || !birthYear || categories.length === 0 || fileInput.files.length === 0) {
+                    alert("Vui lòng điền đủ thông tin, chọn biểu mẫu và upload file minh chứng!"); return;
+                }
+
+                btn.disabled = true; btn.innerText = "⏳ ĐANG XỬ LÝ...";
+                msg.className = 'feedback text-info'; msg.innerText = "Đang lưu thông tin con em...";
+
+                // 1. Lưu con em vào bảng cd_con_em
+                const { data: depData, error: depErr } = await supabase.from('cd_con_em')
+                    .insert([{ msnv: formattedMsnv, full_name: dependentName, birth_year: birthYear }])
+                    .select('id').single();
+
+                if(depErr) throw new Error("Lỗi lưu thông tin con: " + depErr.message);
+                const dependentId = depData.id;
+
+                // 2. Upload file
+                msg.innerText = "Đang tải file lên Google Drive...";
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = async function(event) {
+                    try {
+                        const payload = { fileName: formattedMsnv + "_" + file.name, mimeType: file.type, base64: event.target.result };
+                        const gasResponse = await fetch(APPSCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                        const gasResult = await gasResponse.json();
+                        
+                        if(gasResult.url) {
+                            msg.innerText = "Đang lưu hồ sơ vào hệ thống...";
+                            
+                            // 3. Lưu vào bảng cd_ho_so
+                            const { error: subErr } = await supabase.from('cd_ho_so').insert([{ 
+                                msnv: formattedMsnv, 
+                                dependent_id: dependentId, 
+                                categories_list: categories.join(', '), 
+                                evidence_url: gasResult.url 
+                            }]);
+                            
+                            if(!subErr) {
+                                msg.className = 'feedback text-success'; msg.innerText = "🎉 ĐĂNG KÝ HỒ SƠ THÀNH CÔNG!";
+                                document.getElementById('dependentName').value = ""; document.getElementById('birthYear').value = "";
+                                checkboxes.forEach(cb => cb.checked = false); fileInput.value = "";
+                            } else {
+                                throw new Error("Lỗi lưu hồ sơ: " + subErr.message);
+                            }
+                        } else {
+                            throw new Error("Không nhận được Link từ Google Drive");
+                        }
+                    } catch (errUpload) {
+                        msg.className = 'feedback text-danger'; msg.innerText = "❌ Lỗi mạng/Upload: " + errUpload.message;
+                    }
+                    btn.disabled = false; btn.innerText = "GỬI HỒ SƠ";
+                };
+                reader.readAsDataURL(file);
+            } catch (errMain) {
+                btn.disabled = false; btn.innerText = "GỬI HỒ SƠ";
+                msg.className = 'feedback text-danger'; msg.innerText = `❌ Lỗi: ${errMain.message}`;
+            }
         }
     </script>
 </body>
