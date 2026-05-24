@@ -144,12 +144,16 @@
                 btn.disabled = true; btn.innerText = "⏳ ĐANG XỬ LÝ...";
                 msg.className = 'feedback text-info'; msg.innerText = "Đang lưu thông tin con em...";
 
-                // 1. Lưu con em vào bảng cd_con_em
+                // 1. Lưu con em (ĐÃ FIX: Ép kiểu Number cho năm sinh để database không từ chối)
                 const { data: depData, error: depErr } = await supabase.from('cd_con_em')
-                    .insert([{ msnv: formattedMsnv, full_name: dependentName, birth_year: birthYear }])
+                    .insert([{ 
+                        msnv: formattedMsnv, 
+                        full_name: dependentName, 
+                        birth_year: Number(birthYear) 
+                    }])
                     .select('id').single();
 
-                if(depErr) throw new Error("Lỗi lưu thông tin con: " + depErr.message);
+                if(depErr) throw new Error("Lỗi lưu DB con em: " + depErr.message);
                 const dependentId = depData.id;
 
                 // 2. Upload file
