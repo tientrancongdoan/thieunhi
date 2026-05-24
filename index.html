@@ -70,9 +70,10 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuZmJmYWJya2V4cG1yZGdwdWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzA1MDMsImV4cCI6MjA5NTE0NjUwM30.qIkRcYs9G1NoDjZUOP-XZVE-3URK42yMjx92_pWsEJE';
         const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8c4SuzrQHhp_eyieQzBd6a39UXdcx7N_Bnk2nauGWDhT5P0M3cjgdCbSFoK8mla-mSw/exec';
 
-        let supabase;
+        // ĐỔI TÊN BIẾN THÀNH supabaseClient ĐỂ TRÁNH XUNG ĐỘT
+        let supabaseClient;
         if (typeof window.supabase !== 'undefined') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             loadCategories(); 
         } else {
             alert("Lỗi tải thư viện Supabase. Vui lòng kiểm tra kết nối mạng!");
@@ -91,7 +92,7 @@
 
         // Tải danh mục từ bảng cd_danh_muc
         async function loadCategories() {
-            const { data, error } = await supabase.from('cd_danh_muc').select('*').order('id', { ascending: true });
+            const { data, error } = await supabaseClient.from('cd_danh_muc').select('*').order('id', { ascending: true });
             const container = document.getElementById('categories-container');
             if (data && data.length > 0) {
                 container.innerHTML = "";
@@ -116,7 +117,7 @@
                 inputEl.value = inputVal; formattedMsnv = inputVal;
                 infoDiv.className = 'feedback text-info'; infoDiv.innerText = "⏳ Đang tra cứu...";
                 
-                const { data, error } = await supabase.from('cd_nhan_vien').select('*').eq('msnv', formattedMsnv).single();
+                const { data, error } = await supabaseClient.from('cd_nhan_vien').select('*').eq('msnv', formattedMsnv).single();
                 
                 if (error) {
                     infoDiv.className = 'feedback text-danger';
@@ -153,7 +154,7 @@
                 btn.disabled = true; btn.innerText = "⏳ ĐANG XỬ LÝ...";
                 msg.className = 'feedback text-info'; msg.innerText = "Đang lưu thông tin con em...";
 
-                const { data: depData, error: depErr } = await supabase.from('cd_con_em')
+                const { data: depData, error: depErr } = await supabaseClient.from('cd_con_em')
                     .insert([{ 
                         msnv: formattedMsnv, 
                         full_name: dependentName, 
@@ -177,7 +178,7 @@
                         if(gasResult.url) {
                             msg.innerText = "Đang lưu hồ sơ vào hệ thống...";
                             
-                            const { error: subErr } = await supabase.from('cd_ho_so').insert([{ 
+                            const { error: subErr } = await supabaseClient.from('cd_ho_so').insert([{ 
                                 msnv: formattedMsnv, 
                                 dependent_id: dependentId, 
                                 categories_list: categories.join(', '), 
