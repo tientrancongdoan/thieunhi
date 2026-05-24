@@ -34,8 +34,10 @@
         <div class="form-group">
             <label>Nhập Mã số nhân viên (MSNV):</label>
             <div class="input-group">
-                <input type="text" id="msnv" placeholder="VD: 9719 hoặc 009719" onkeypress="if(event.key === 'Enter') fetchEmployee()">
-                <button id="checkBtn" onclick="fetchEmployee()">Kiểm tra</button>
+                <!-- Đã xóa onkeypress -->
+                <input type="text" id="msnv" placeholder="VD: 9719 hoặc 009719">
+                <!-- Đã xóa onclick -->
+                <button id="checkBtn">Kiểm tra</button>
             </div>
             <div id="employee-info" class="feedback"></div>
         </div>
@@ -60,7 +62,8 @@
                 <input type="file" id="evidenceFile" accept=".jpg,.jpeg,.png,.pdf" required>
             </div>
             
-            <button id="submitBtn" class="submit-btn" onclick="submitForm()">GỬI HỒ SƠ</button>
+            <!-- Đã xóa onclick -->
+            <button id="submitBtn" class="submit-btn">GỬI HỒ SƠ</button>
             <div id="status-msg" class="feedback" style="text-align: center; margin-top: 15px;"></div>
         </div>
     </div>
@@ -79,6 +82,15 @@
         }
 
         let formattedMsnv = "";
+
+        // Gắn sự kiện (Event Listeners) thay cho onclick trong HTML
+        document.getElementById('checkBtn').addEventListener('click', fetchEmployee);
+        
+        document.getElementById('msnv').addEventListener('keypress', function(event) {
+            if(event.key === 'Enter') fetchEmployee();
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', submitForm);
 
         // Tải danh mục từ bảng cd_danh_muc
         async function loadCategories() {
@@ -144,7 +156,6 @@
                 btn.disabled = true; btn.innerText = "⏳ ĐANG XỬ LÝ...";
                 msg.className = 'feedback text-info'; msg.innerText = "Đang lưu thông tin con em...";
 
-                // 1. Lưu con em (ĐÃ FIX: Ép kiểu Number cho năm sinh để database không từ chối)
                 const { data: depData, error: depErr } = await supabase.from('cd_con_em')
                     .insert([{ 
                         msnv: formattedMsnv, 
@@ -156,21 +167,19 @@
                 if(depErr) throw new Error("Lỗi lưu DB con em: " + depErr.message);
                 const dependentId = depData.id;
 
-                // 2. Upload file
                 msg.innerText = "Đang tải file lên Google Drive...";
                 const file = fileInput.files[0];
                 const reader = new FileReader();
                 
                 reader.onload = async function(event) {
                     try {
-                        const payload = { fileName: formattedMsnv + "_" + file.name, mimeType: file.type, base64: event.target.result };
+                        const payload = { fileName: formattedMsnv + "_" + file.name, mimeType: file.type, base64: event.target.result.split(',')[1] || event.target.result };
                         const gasResponse = await fetch(APPSCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
                         const gasResult = await gasResponse.json();
                         
                         if(gasResult.url) {
                             msg.innerText = "Đang lưu hồ sơ vào hệ thống...";
                             
-                            // 3. Lưu vào bảng cd_ho_so
                             const { error: subErr } = await supabase.from('cd_ho_so').insert([{ 
                                 msnv: formattedMsnv, 
                                 dependent_id: dependentId, 
